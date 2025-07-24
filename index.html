@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Video con Espectro de Audio</title>
+    <!-- Aplicación completamente offline - No requiere conexión a internet -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-box:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .upload-box.active {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: #4CAF50;
+        }
+
+        .upload-box h3 {
+            color: white;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .upload-box p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-info {
+            color: white;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            display: none;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .controls h3 {
+            color: white;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-item label {
+            color: white;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .control-item input, .control-item select {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+        }
+
+        .preview-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .preview-section h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        #canvas {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            background: #000;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            color: white;
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+        }
+
+        .status.info {
+            background: rgba(33, 150, 243, 0.2);
+        }
+
+        .download-section {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid rgba(76, 175, 80, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .download-section h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .download-section p {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .video-preview {
+            margin: 20px 0;
+        }
+
+        a.btn-primary {
+            display: inline-block;
+            text-decoration: none;
+            margin: 5px;
+        }
+
+        .download-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            color: white;
+        }
+
+        .format-badge {
+            display: inline-block;
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196F3;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+
+        @media (max-width: 768px) {
+            .upload-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Generador de Video con Espectro de Audio</h1>
+        
+        <div class="upload-section">
+            <div class="upload-box" onclick="document.getElementById('audioFile').click()">
+                <h3>📁 Subir Audio</h3>
+                <p>Arrastra tu archivo de audio aquí o haz clic para seleccionar</p>
+                <p><small>Formatos soportados: MP3, WAV, OGG, M4A, FLAC</small></p>
+                <input type="file" id="audioFile" accept="audio/*">
+                <div class="file-info" id="audioInfo"></div>
+            </div>
+            
+            <div class="upload-box" onclick="document.getElementById('imageFile').click()">
+                <h3>🖼️ Subir Imagen</h3>
+                <p>Arrastra tu imagen de fondo aquí o haz clic para seleccionar</p>
+                <p><small>Formatos soportados: JPG, PNG, GIF, WEBP, BMP</small></p>
+                <input type="file" id="imageFile" accept="image/*">
+                <div class="file-info" id="imageInfo"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>⚙️ Configuración del Espectro</h3>
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="spectrumType">Tipo de Espectro:</label>
+                    <select id="spectrumType">
+                        <option value="bars">Barras</option>
+                        <option value="wave">Onda</option>
+                        <option value="circular">Circular</option>
+                        <option value="particles">Partículas</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="spectrumColor">Color del Espectro:</label>
+                    <select id="spectrumColor">
+                        <option value="rainbow">Arcoíris</option>
+                        <option value="blue">Azul</option>
+                        <option value="red">Rojo</option>
+                        <option value="green">Verde</option>
+                        <option value="purple">Morado</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="sensitivity">Sensibilidad:</label>
+                    <input type="range" id="sensitivity" min="0.1" max="3" step="0.1" value="1">
+                </div>
+                <div class="control-item">
+                    <label for="smoothing">Suavizado:</label>
+                    <input type="range" id="smoothing" min="0" max="0.9" step="0.1" value="0.8">
+                </div>
+                <div class="control-item">
+                    <label for="videoQuality">Calidad del Video:</label>
+                    <select id="videoQuality">
+                        <option value="720p">720p (HD)</option>
+                        <option value="1080p">1080p (Full HD)</option>
+                        <option value="480p">480p (SD)</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="fps">FPS:</label>
+                    <select id="fps">
+                        <option value="24">24 FPS</option>
+                        <option value="30">30 FPS</option>
+                        <option value="60">60 FPS</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>💾 Opciones de Descarga</h3>
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="videoFormat">Formato del Video:</label>
+                    <select id="videoFormat">
+                        <option value="webm">WebM (Recomendado)</option>
+                        <option value="mp4">MP4 (Compatible)</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="videoName">Nombre del Archivo:</label>
+                    <input type="text" id="videoName" placeholder="mi_video_espectro" value="spectrum_video">
+                </div>
+                <div class="control-item">
+                    <label for="autoDownload">Descarga Automática:</label>
+                    <select id="autoDownload">
+                        <option value="true">Sí - Descargar automáticamente</option>
+                        <option value="false">No - Mostrar botón de descarga</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-section">
+            <h3>👁️ Vista Previa</h3>
+            <canvas id="canvas" width="1280" height="720"></canvas>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-secondary" onclick="previewSpectrum()" id="previewBtn" disabled>
+                🔍 Vista Previa
+            </button>
+            <button class="btn-primary" onclick="generateVideo()" id="generateBtn" disabled>
+                🎬 Generar Video
+            </button>
+            <button class="btn-danger" onclick="stopGeneration()" id="stopBtn" disabled>
+                ⏹️ Detener
+            </button>
+            <a id="downloadLink" style="display: none;" class="btn-primary" download>
+                📥 Descargar Video
+            </a>
+        </div>
+
+        <div class="download-section" id="downloadSection" style="display: none;">
+            <h3>✅ Video Generado Exitosamente</h3>
+            <p>Tu video con espectro de audio está listo para descargar:</p>
+            <div class="video-preview">
+                <video id="generatedVideo" controls style="max-width: 100%; border-radius: 10px; margin: 10px 0;"></video>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="downloadGeneratedVideo()">
+                    📥 Descargar Video
+                </button>
+                <button class="btn-secondary" onclick="generateNewVideo()">
+                    🔄 Generar Nuevo Video
+                </button>
+            </div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        let audioFile = null;
+        let imageFile = null;
+        let audioContext = null;
+        let analyser = null;
+        let dataArray = null;
+        let canvas = null;
+        let ctx = null;
+        let animationId = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let backgroundImage = null;
+        let isGenerating = false;
+        let generatedVideoBlob = null;
+        let generatedVideoURL = null;
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            setupEventListeners();
+            updateCanvasSize();
+        });
+
+        function setupEventListeners() {
+            // Drag and drop para audio
+            const audioBox = document.querySelector('.upload-box:first-child');
+            audioBox.addEventListener('dragover', handleDragOver);
+            audioBox.addEventListener('drop', (e) => handleDrop(e, 'audio'));
+
+            // Drag and drop para imagen
+            const imageBox = document.querySelector('.upload-box:last-child');
+            imageBox.addEventListener('dragover', handleDragOver);
+            imageBox.addEventListener('drop', (e) => handleDrop(e, 'image'));
+
+            // Listeners para archivos
+            document.getElementById('audioFile').addEventListener('change', handleAudioFile);
+            document.getElementById('imageFile').addEventListener('change', handleImageFile);
+
+            // Listener para calidad de video
+            document.getElementById('videoQuality').addEventListener('change', updateCanvasSize);
+
+            // Listeners para controles
+            document.getElementById('spectrumType').addEventListener('change', updatePreview);
+            document.getElementById('spectrumColor').addEventListener('change', updatePreview);
+            document.getElementById('sensitivity').addEventListener('input', updatePreview);
+            document.getElementById('smoothing').addEventListener('input', updatePreview);
+
+            // Resize listener
+            window.addEventListener('resize', updateCanvasSize);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e, type) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (type === 'audio' && file.type.startsWith('audio/')) {
+                    processAudioFile(file);
+                } else if (type === 'image' && file.type.startsWith('image/')) {
+                    processImageFile(file);
+                }
+            }
+        }
+
+        function handleAudioFile(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processAudioFile(file);
+            }
+        }
+
+        function handleImageFile(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processImageFile(file);
+            }
+        }
+
+        function processAudioFile(file) {
+            audioFile = file;
+            const audioBox = document.querySelector('.upload-box:first-child');
+            const audioInfo = document.getElementById('audioInfo');
+            
+            audioBox.classList.add('active');
+            audioInfo.style.display = 'block';
+            audioInfo.innerHTML = `
+                <strong>📁 ${file.name}</strong><br>
+                📊 Tamaño: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                🎵 Tipo: ${file.type}
+            `;
+            
+            checkFilesAndEnableButtons();
+            showStatus('Audio cargado correctamente', 'success');
+        }
+
+        function processImageFile(file) {
+            imageFile = file;
+            const imageBox = document.querySelector('.upload-box:last-child');
+            const imageInfo = document.getElementById('imageInfo');
+            
+            imageBox.classList.add('active');
+            imageInfo.style.display = 'block';
+            
+            // Crear preview de la imagen
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    backgroundImage = img;
+                    updatePreview();
+                    
+                    imageInfo.innerHTML = `
+                        <strong>🖼️ ${file.name}</strong><br>
+                        📊 Tamaño: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                        📐 Resolución: ${img.width}x${img.height}px<br>
+                        🎨 Tipo: ${file.type}
+                    `;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            checkFilesAndEnableButtons();
+            showStatus('Imagen cargada correctamente', 'success');
+        }
+
+        function checkFilesAndEnableButtons() {
+            const previewBtn = document.getElementById('previewBtn');
+            const generateBtn = document.getElementById('generateBtn');
+            
+            if (audioFile && imageFile) {
+                previewBtn.disabled = false;
+                generateBtn.disabled = false;
+            }
+        }
+
+        function updateCanvasSize() {
+            const quality = document.getElementById('videoQuality').value;
+            let width, height;
+            
+            switch(quality) {
+                case '1080p':
+                    width = 1920;
+                    height = 1080;
+                    break;
+                case '720p':
+                    width = 1280;
+                    height = 720;
+                    break;
+                case '480p':
+                    width = 854;
+                    height = 480;
+                    break;
+                default:
+                    width = 1280;
+                    height = 720;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            updatePreview();
+        }
+
+        function updatePreview() {
+            if (backgroundImage) {
+                drawBackground();
+                drawDummySpectrum();
+            }
+        }
+
+        function drawBackground() {
+            // Dibujar imagen de fondo escalada
+            const scaleX = canvas.width / backgroundImage.width;
+            const scaleY = canvas.height / backgroundImage.height;
+            const scale = Math.max(scaleX, scaleY);
+            
+            const scaledWidth = backgroundImage.width * scale;
+            const scaledHeight = backgroundImage.height * scale;
+            
+            const x = (canvas.width - scaledWidth) / 2;
+            const y = (canvas.height - scaledHeight) / 2;
+            
+            ctx.drawImage(backgroundImage, x, y, scaledWidth, scaledHeight);
+            
+            // Overlay semi-transparente para mejor visibilidad del espectro
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawDummySpectrum() {
+            const spectrumType = document.getElementById('spectrumType').value;
+            const spectrumColor = document.getElementById('spectrumColor').value;
+            
+            // Generar datos dummy para preview
+            const dummyData = new Array(128).fill(0).map(() => Math.random() * 255);
+            
+            drawSpectrum(dummyData, spectrumType, spectrumColor);
+        }
+
+        function drawSpectrum(dataArray, type, colorScheme) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const sensitivity = parseFloat(document.getElementById('sensitivity').value);
+            
+            switch(type) {
+                case 'bars':
+                    drawBarsSpectrum(dataArray, colorScheme, sensitivity);
+                    break;
+                case 'wave':
+                    drawWaveSpectrum(dataArray, colorScheme, sensitivity);
+                    break;
+                case 'circular':
+                    drawCircularSpectrum(dataArray, colorScheme, sensitivity);
+                    break;
+                case 'particles':
+                    drawParticlesSpectrum(dataArray, colorScheme, sensitivity);
+                    break;
+            }
+        }
+
+        function drawBarsSpectrum(dataArray, colorScheme, sensitivity) {
+            const barWidth = canvas.width / dataArray.length;
+            
+            for (let i = 0; i < dataArray.length; i++) {
+                const barHeight = (dataArray[i] / 255) * canvas.height * 0.8 * sensitivity;
+                const x = i * barWidth;
+                const y = canvas.height - barHeight;
+                
+                ctx.fillStyle = getColor(i, dataArray.length, colorScheme);
+                ctx.fillRect(x, y, barWidth - 1, barHeight);
+            }
+        }
+
+        function drawWaveSpectrum(dataArray, colorScheme, sensitivity) {
+            ctx.strokeStyle = getColor(0, 1, colorScheme);
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            const sliceWidth = canvas.width / dataArray.length;
+            let x = 0;
+            
+            for (let i = 0; i < dataArray.length; i++) {
+                const v = (dataArray[i] / 255) * sensitivity;
+                const y = (canvas.height / 2) + (v * canvas.height / 4) * Math.sin(i * 0.1);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                
+                x += sliceWidth;
+            }
+            
+            ctx.stroke();
+        }
+
+        function drawCircularSpectrum(dataArray, colorScheme, sensitivity) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(canvas.width, canvas.height) * 0.2;
+            
+            for (let i = 0; i < dataArray.length; i++) {
+                const angle = (i / dataArray.length) * Math.PI * 2;
+                const amplitude = (dataArray[i] / 255) * 200 * sensitivity;
+                
+                const x1 = centerX + Math.cos(angle) * radius;
+                const y1 = centerY + Math.sin(angle) * radius;
+                const x2 = centerX + Math.cos(angle) * (radius + amplitude);
+                const y2 = centerY + Math.sin(angle) * (radius + amplitude);
+                
+                ctx.strokeStyle = getColor(i, dataArray.length, colorScheme);
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        function drawParticlesSpectrum(dataArray, colorScheme, sensitivity) {
+            for (let i = 0; i < dataArray.length; i++) {
+                const amplitude = (dataArray[i] / 255) * sensitivity;
+                if (amplitude > 0.1) {
+                    const x = (i / dataArray.length) * canvas.width;
+                    const y = canvas.height - (amplitude * canvas.height * 0.8);
+                    const size = amplitude * 10;
+                    
+                    ctx.fillStyle = getColor(i, dataArray.length, colorScheme);
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function getColor(index, total, colorScheme) {
+            switch(colorScheme) {
+                case 'rainbow':
+                    const hue = (index / total) * 360;
+                    return `hsl(${hue}, 100%, 50%)`;
+                case 'blue':
+                    return `rgba(0, 150, 255, ${0.7 + (index / total) * 0.3})`;
+                case 'red':
+                    return `rgba(255, 50, 50, ${0.7 + (index / total) * 0.3})`;
+                case 'green':
+                    return `rgba(50, 255, 50, ${0.7 + (index / total) * 0.3})`;
+                case 'purple':
+                    return `rgba(150, 50, 255, ${0.7 + (index / total) * 0.3})`;
+                default:
+                    return '#ffffff';
+            }
+        }
+
+        async function previewSpectrum() {
+            if (!audioFile || !imageFile) return;
+            
+            try {
+                showStatus('Iniciando vista previa...', 'info');
+                
+                // Crear audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                
+                // Cargar y reproducir audio
+                const arrayBuffer = await audioFile.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                source.start();
+                animateSpectrum();
+                
+                showStatus('Vista previa iniciada. El audio se reproducirá una vez.', 'success');
+                
+            } catch (error) {
+                console.error('Error en vista previa:', error);
+                showStatus('Error al iniciar vista previa: ' + error.message, 'error');
+            }
+        }
+
+        function animateSpectrum() {
+            if (!analyser || !dataArray) return;
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar fondo
+            if (backgroundImage) {
+                drawBackground();
+            }
+            
+            // Dibujar espectro
+            const spectrumType = document.getElementById('spectrumType').value;
+            const spectrumColor = document.getElementById('spectrumColor').value;
+            drawSpectrum(dataArray, spectrumType, spectrumColor);
+            
+            animationId = requestAnimationFrame(animateSpectrum);
+        }
+
+        async function generateVideo() {
+            if (!audioFile || !imageFile || isGenerating) return;
+            
+            isGenerating = true;
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('downloadSection').style.display = 'none';
+            
+            try {
+                showStatus('Preparando generación de video...', 'info');
+                
+                // Obtener formato seleccionado
+                const videoFormat = document.getElementById('videoFormat').value;
+                
+                // Configurar MediaRecorder con el formato apropiado
+                const stream = canvas.captureStream(parseInt(document.getElementById('fps').value));
+                let mimeType = 'video/webm;codecs=vp9';
+                
+                if (videoFormat === 'mp4') {
+                    // Intentar MP4, si no es compatible usar WebM
+                    if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) {
+                        mimeType = 'video/mp4;codecs=h264';
+                    } else {
+                        showStatus('MP4 no soportado en este navegador, usando WebM', 'info');
+                    }
+                }
+                
+                const options = {
+                    mimeType: mimeType,
+                    videoBitsPerSecond: getVideoBitrate()
+                };
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                recordedChunks = [];
+                
+                mediaRecorder.ondataavailable = function(event) {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = function() {
+                    const blob = new Blob(recordedChunks, { type: mimeType });
+                    generatedVideoBlob = blob;
+                    generatedVideoURL = URL.createObjectURL(blob);
+                    handleVideoGenerated();
+                };
+                
+                // Preparar audio
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = parseFloat(document.getElementById('smoothing').value);
+                
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                
+                const arrayBuffer = await audioFile.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                // Iniciar grabación
+                mediaRecorder.start();
+                showStatus('Generando video... Por favor espera.', 'info');
+                
+                // Reproducir audio y animar
+                source.start();
+                const duration = audioBuffer.duration * 1000; // en ms
+                
+                let startTime = Date.now();
+                
+                function recordFrame() {
+                    if (!isGenerating) return;
+                    
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min((elapsed / duration) * 100, 100);
+                    
+                    document.getElementById('progressFill').style.width = progress + '%';
+                    
+                    analyser.getByteFrequencyData(dataArray);
+                    
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    if (backgroundImage) {
+                        drawBackground();
+                    }
+                    
+                    const spectrumType = document.getElementById('spectrumType').value;
+                    const spectrumColor = document.getElementById('spectrumColor').value;
+                    drawSpectrum(dataArray, spectrumType, spectrumColor);
+                    
+                    if (elapsed < duration) {
+                        requestAnimationFrame(recordFrame);
+                    } else {
+                        finishRecording();
+                    }
+                }
+                
+                recordFrame();
+                
+            } catch (error) {
+                console.error('Error generando video:', error);
+                showStatus('Error al generar video: ' + error.message, 'error');
+                resetGeneration();
+            }
+        }
+
+        function getVideoBitrate() {
+            const quality = document.getElementById('videoQuality').value;
+            switch(quality) {
+                case '1080p': return 8000000; // 8 Mbps
+                case '720p': return 5000000;  // 5 Mbps
+                case '480p': return 2500000;  // 2.5 Mbps
+                default: return 5000000;
+            }
+        }
+
+        function handleVideoGenerated() {
+            const autoDownload = document.getElementById('autoDownload').value === 'true';
+            
+            if (autoDownload) {
+                downloadGeneratedVideo();
+            } else {
+                showVideoPreview();
+            }
+            
+            showStatus('¡Video generado exitosamente!', 'success');
+            resetGeneration();
+        }
+
+        function showVideoPreview() {
+            const downloadSection = document.getElementById('downloadSection');
+            const generatedVideo = document.getElementById('generatedVideo');
+            
+            generatedVideo.src = generatedVideoURL;
+            downloadSection.style.display = 'block';
+            
+            // Scroll hacia la sección de descarga
+            downloadSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function downloadGeneratedVideo() {
+            if (!generatedVideoBlob) return;
+            
+            const videoName = document.getElementById('videoName').value || 'spectrum_video';
+            const videoFormat = document.getElementById('videoFormat').value;
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+            
+            const fileName = `${videoName}_${timestamp}.${videoFormat}`;
+            
+            const a = document.createElement('a');
+            a.href = generatedVideoURL;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            showStatus(`Descargando: ${fileName}`, 'success');
+        }
+
+        function generateNewVideo() {
+            // Limpiar video anterior
+            if (generatedVideoURL) {
+                URL.revokeObjectURL(generatedVideoURL);
+            }
+            generatedVideoBlob = null;
+            generatedVideoURL = null;
+            
+            // Ocultar sección de descarga
+            document.getElementById('downloadSection').style.display = 'none';
+            
+            // Scroll hacia arriba
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            showStatus('Listo para generar un nuevo video', 'info');
+        }
+
+        function finishRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            showStatus('Video generado exitosamente. Descargando...', 'success');
+            resetGeneration();
+        }
+
+        function stopGeneration() {
+            isGenerating = false;
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            if (audioContext) {
+                audioContext.close();
+            }
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            showStatus('Generación cancelada', 'info');
+            resetGeneration();
+        }
+
+        function resetGeneration() {
+            isGenerating = false;
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        function downloadVideo(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `spectrum_video_${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
